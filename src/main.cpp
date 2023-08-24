@@ -1,4 +1,5 @@
 #include <SDL2/SDL.h>
+#include <iostream>
 #include <vector>
 #include <glm.hpp>
 #include <gtx/io.hpp>
@@ -10,8 +11,6 @@
 
 #include "fragment.h"
 #include "uniform.h"
-
-#include "print.h"
 #include "color.h"
 #include "shaders.h"
 #include "triangle.h"
@@ -23,9 +22,6 @@ std::array<std::array<float, WINDOW_WIDTH>, WINDOW_HEIGHT> zbuffer;
 
 
 SDL_Renderer* renderer;
-
-Uniform uniform;
-
 
 // Declare a global clearColor of type Color
 Color clearColor = {0, 0, 0}; // Initially set to black
@@ -46,16 +42,14 @@ void clear() {
 
 // Function to set a specific pixel in the framebuffer to the currentColor
 void point(Fragment f) {
-    if (f.position.z < zbuffer[f.position.y][f.position.x]) {
+    if (f.z < zbuffer[f.y][f.x]) {
         SDL_SetRenderDrawColor(renderer, f.color.r, f.color.g, f.color.b, f.color.a);
-        SDL_RenderDrawPoint(renderer, f.position.x, f.position.y);
-        zbuffer[f.position.y][f.position.x] = f.position.z;
+        SDL_RenderDrawPoint(renderer, f.x, f.y);
+        zbuffer[f.y][f.x] = f.z;
     }
 }
 
-std::vector<std::vector<Vertex>> primitiveAssembly(
-    const std::vector<Vertex>& transformedVertices
-) {
+std::vector<std::vector<Vertex>> primitiveAssembly(const std::vector<Vertex>& transformedVertices) {
     std::vector<std::vector<Vertex>> groupedVertices;
 
     for (int i = 0; i < transformedVertices.size(); i += 3) {
@@ -71,19 +65,18 @@ std::vector<std::vector<Vertex>> primitiveAssembly(
 }
 
 
-void render(std::vector<glm::vec3> VBO) {
+void render(std::vector<glm::vec3> VBO, const Uniform& uniforms) {
     // 1. Vertex Shader
     // vertex -> trasnformedVertices
     
-    std::vector<Vertex> transformedVertices;
+    std::vector<Vertex> transformedVertices(VBO.size() / 2);
 
     for (int i = 0; i < VBO.size(); i+=2) {
         glm::vec3 v = VBO[i];
-        glm::vec3 c = VBO[i+1];
+        glm::vec3 u = VBO[i+1];
 
-        Vertex vertex = {v, Color(c.x, c.y, c.z)};
-        Vertex transformedVertex = vertexShader(vertex, uniform);
-        transformedVertices.push_back(transformedVertex);
+        Vertex vertex = {v, u};
+        transformedVertices.push_back(vertexShader(vertex, uniforms));
     }
 
 
@@ -160,10 +153,11 @@ glm::mat4 createViewportMatrix() {
 }
 
 struct Face {
-    std::vector<std::array<int, 3>> vertexIndices;
+    std::array<int, 3> vertexIndices;
+    std::array<int, 3> normalIndices;
 };
 
-bool loadOBJ(const std::string& path, std::vector<glm::vec3>& out_vertices, std::vector<glm::vec3>& out_textures, std::vector<Face>& out_faces, float scaleFactor = 1.0f)
+bool loadOBJ(const std::string& path, std::vector<glm::vec3>& out_vertices, std::vector<glm::vec3>& out_textures, std::vector<glm::vec3>& out_normals, std::vector<Face>& out_faces, float scaleFactor = 1.0f)
 {
     std::ifstream file(path);
     if (!file)
@@ -190,6 +184,11 @@ bool loadOBJ(const std::string& path, std::vector<glm::vec3>& out_vertices, std:
             vertex *= scaleFactor;
             out_vertices.push_back(vertex);
         }
+        else if (lineHeader == "vn")
+        {
+            iss >> vertex.x >> vertex.y >> vertex.z;
+            out_normals.push_back(vertex);
+        }
         else if (lineHeader == "vt")
         {
             iss >> vertex.x >> vertex.y >> vertex.z;
@@ -197,23 +196,23 @@ bool loadOBJ(const std::string& path, std::vector<glm::vec3>& out_vertices, std:
         }
         else if (lineHeader == "f")
         {
-            std::array<int, 3> vertexIndices;
-            while (iss >> lineHeader)
+            Face face;
+            for (int i = 0; i < 3; ++i)
             {
-              std::istringstream tokenstream(lineHeader);
-              std::string token;
-              std::array<int, 3> vertexIndices;
+                std::string faceData;
+                iss >> faceData;
+                
+                std::replace(faceData.begin(), faceData.end(), '/', ' ');
 
-              // Read all three values separated by '/'
-              for (int i = 0; i < 3; ++i) {
-                  std::getline(tokenstream, token, '/');
-                  vertexIndices[i] = std::stoi(token) - 1;
-              }
+                std::istringstream faceDataIss(faceData);
+                int temp;
+                faceDataIss >> face.vertexIndices[i] >> temp >> face.normalIndices[i];
 
-              face.vertexIndices.push_back(vertexIndices);
+                face.vertexIndices[i]--;
+                face.normalIndices[i]--;
             }
+
             out_faces.push_back(face);
-            face.vertexIndices.clear();
         }
     }
 
@@ -244,60 +243,77 @@ int main() {
 
     std::vector<glm::vec3> vertices;
     std::vector<glm::vec3> textures;
+    std::vector<glm::vec3> normals;
     std::vector<Face> faces;
     std::vector<glm::vec3> vertexBufferObject;
 
-    if (loadOBJ("assets/Nave.obj", vertices, textures, faces, 0.05f)) {
+    if (loadOBJ("assets/Nave.obj", vertices, textures, normals, faces, 0.04f)) {
         // For each face
         for (const auto& face : faces)
         {
-            // For each vertex in the face
-            for (const auto& vertexIndices : face.vertexIndices)
+            for (int i = 0; i < 3; ++i)
             {
-                // Get the vertex position and normal from the input arrays using the indices from the face
-                glm::vec3 vertexPosition = vertices[vertexIndices[0]];
-                glm::vec3 vertexColor = glm::vec3(0.5f, 0.5f, 0.5f);
+                glm::vec3 vertexPosition = vertices[face.vertexIndices[i]];
+                glm::vec3 vertexNormal = normals[face.normalIndices[i]];
 
+                /*std:: cout << "Posicion: " << vertexPosition << std::endl;
+                std:: cout << "Normal: " << vertexNormal << std::endl; */
 
-                // Add the vertex position and normal to the vertex array
                 vertexBufferObject.push_back(vertexPosition);
-                vertexBufferObject.push_back(vertexColor);
+                vertexBufferObject.push_back(vertexNormal);
             }
         }
     }
 
+    Uniform uniforms;
+
+    /* glm::mat4 model = glm::mat4(1);
+    glm::mat4 view = glm::mat4(1);
+    glm::mat4 projection = glm::mat4(1);
+    
+    glm::vec3 translationVector(0.0f, 0.0f, 0.0f);
+    float a = 45.0f;
+    glm::vec3 rotationAxis(0.0f, 1.0f, 0.0f);
+    glm::vec3 scaleVector(1.0f, 1.0f, 1.0f);
+
+    glm::mat4 translation = glm::translate(glm::mat4(1.0f), translationVector);
+
+    Camera camera;
+    camera.CameraPosition = glm::vec3(0.0f, 0.0f, 5.0f);
+    camera.targetPosition = glm::vec3(0.0f, 0.0f, 0.0f);
+    camera.upVector = glm::vec3(0.0f, 1.0f, 0.0f);
+
+    float fovInDegrees = 45.0f;
+    float aspectRatio = WINDOW_WIDTH / WINDOW_HEIGHT;
+    float nearClip = 0.1f;
+    float farClip = 100.0f;
+    uniforms.projection = glm::perspective(glm::radians(fovInDegrees), aspectRatio, nearClip, farClip);
+
+    uniforms.viewport = createViewportMatrix();*/
+
     while (running) {
+
         while (SDL_PollEvent(&event)) {
             if (event.type == SDL_QUIT) {
                 running = false;
             }
-            if (event. type == SDL_KEYDOWN) {
-                switch (event.key.keysym.sym) {
-                    case SDLK_UP:
-                        break;
-                    case SDLK_DOWN:
-                        break;
-                    case SDLK_LEFT:
-                        break;
-                    case SDLK_RIGHT:
-                        break;
-                    case SDLK_s:
-                        break;
-                    case SDLK_a:
-                        break;
-                }
-            }
         }
 
-        uniform.model = createModelMatrix();
-        uniform.view = createViewMatrix();
-        uniform.projection = createProjectionMatrix();
-        uniform.viewport = createViewportMatrix();
+        /*glm::mat4 rotation = glm::rotate(glm::mat4(1.0f), glm::radians(a++), rotationAxis);
+
+        uniforms.model = translation * rotation;
+
+        uniforms.view = createViewMatrix();*/
+
+        uniforms.model = createModelMatrix();
+        uniforms.view = createViewMatrix();
+        uniforms.projection = createProjectionMatrix();
+        uniforms.viewport = createViewportMatrix();
 
         clear();
 
         // Call our render function
-        render(vertexBufferObject);
+        render(vertexBufferObject, uniforms);
 
         // Present the frame buffer to the screen
         SDL_RenderPresent(renderer);

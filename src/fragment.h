@@ -1,12 +1,22 @@
 #pragma once
 #include "color.h"
+#include <glm.hpp>
+#include <cstdint>
 
 struct Vertex {
   glm::vec3 position;
-  Color color;
+  glm::vec3 normal;
 };
 
 struct Fragment {
-  glm::vec3 position;
+  uint16_t x;
+  uint16_t y;
+  double z;
   Color color;
+  float intensitiy;
+};
+
+struct FragColor {
+  Color color;
+  double z;
 };
