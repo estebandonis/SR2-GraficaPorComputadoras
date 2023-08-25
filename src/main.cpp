@@ -247,7 +247,7 @@ int main() {
     std::vector<Face> faces;
     std::vector<glm::vec3> vertexBufferObject;
 
-    if (loadOBJ("assets/navecita.obj", vertices, textures, normals, faces, 0.18f)) {
+    if (loadOBJ("assets/Nave.obj", vertices, textures, normals, faces, 0.06f)) {
         // For each face
         for (const auto& face : faces)
         {
