@@ -115,7 +115,7 @@ float a = 3.14f / 3.0f;
 glm::mat4 createModelMatrix() {
     glm::mat4 transtation = glm::translate(glm::mat4(1), glm::vec3(0.0f, 0.0f, 0.0f));
     glm::mat4 scale = glm::scale(glm::mat4(1), glm::vec3(1.0f, 1.0f, 1.0f));
-    glm::mat4 rotation = glm::rotate(glm::mat4(1), glm::radians(a++), glm::vec3(0.0f, 1.0f, 0.0f));
+    glm::mat4 rotation = glm::rotate(glm::mat4(1), glm::radians(a++), glm::vec3(1.0f, 1.0f, 0.0f));
     
     return transtation * scale * rotation;
 }
@@ -247,7 +247,7 @@ int main() {
     std::vector<Face> faces;
     std::vector<glm::vec3> vertexBufferObject;
 
-    if (loadOBJ("assets/Nave.obj", vertices, textures, normals, faces, 0.04f)) {
+    if (loadOBJ("assets/navecita.obj", vertices, textures, normals, faces, 0.18f)) {
         // For each face
         for (const auto& face : faces)
         {
@@ -255,9 +255,6 @@ int main() {
             {
                 glm::vec3 vertexPosition = vertices[face.vertexIndices[i]];
                 glm::vec3 vertexNormal = normals[face.normalIndices[i]];
-
-                /*std:: cout << "Posicion: " << vertexPosition << std::endl;
-                std:: cout << "Normal: " << vertexNormal << std::endl; */
 
                 vertexBufferObject.push_back(vertexPosition);
                 vertexBufferObject.push_back(vertexNormal);
@@ -267,30 +264,6 @@ int main() {
 
     Uniform uniforms;
 
-    /* glm::mat4 model = glm::mat4(1);
-    glm::mat4 view = glm::mat4(1);
-    glm::mat4 projection = glm::mat4(1);
-    
-    glm::vec3 translationVector(0.0f, 0.0f, 0.0f);
-    float a = 45.0f;
-    glm::vec3 rotationAxis(0.0f, 1.0f, 0.0f);
-    glm::vec3 scaleVector(1.0f, 1.0f, 1.0f);
-
-    glm::mat4 translation = glm::translate(glm::mat4(1.0f), translationVector);
-
-    Camera camera;
-    camera.CameraPosition = glm::vec3(0.0f, 0.0f, 5.0f);
-    camera.targetPosition = glm::vec3(0.0f, 0.0f, 0.0f);
-    camera.upVector = glm::vec3(0.0f, 1.0f, 0.0f);
-
-    float fovInDegrees = 45.0f;
-    float aspectRatio = WINDOW_WIDTH / WINDOW_HEIGHT;
-    float nearClip = 0.1f;
-    float farClip = 100.0f;
-    uniforms.projection = glm::perspective(glm::radians(fovInDegrees), aspectRatio, nearClip, farClip);
-
-    uniforms.viewport = createViewportMatrix();*/
-
     while (running) {
 
         while (SDL_PollEvent(&event)) {
@@ -298,12 +271,6 @@ int main() {
                 running = false;
             }
         }
-
-        /*glm::mat4 rotation = glm::rotate(glm::mat4(1.0f), glm::radians(a++), rotationAxis);
-
-        uniforms.model = translation * rotation;
-
-        uniforms.view = createViewMatrix();*/
 
         uniforms.model = createModelMatrix();
         uniforms.view = createViewMatrix();
