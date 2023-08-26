@@ -16,3 +16,4 @@ Al ejecutarlo se verá algo así:
 
 
 
+![Navegif](https://github.com/estebandonis/SR2-GraficaPorComputadoras/assets/77749546/53cb9f48-9320-4812-85f2-6583e2da778d)
