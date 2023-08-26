@@ -115,7 +115,7 @@ float a = 3.14f / 3.0f;
 glm::mat4 createModelMatrix() {
     glm::mat4 transtation = glm::translate(glm::mat4(1), glm::vec3(0.0f, 0.0f, 0.0f));
     glm::mat4 scale = glm::scale(glm::mat4(1), glm::vec3(1.0f, 1.0f, 1.0f));
-    glm::mat4 rotation = glm::rotate(glm::mat4(1), glm::radians(a++), glm::vec3(1.0f, 1.0f, 0.0f));
+    glm::mat4 rotation = glm::rotate(glm::mat4(1), glm::radians(a++), glm::vec3(0.5f, 0.5f, 0.0f));
     
     return transtation * scale * rotation;
 }
@@ -247,7 +247,7 @@ int main() {
     std::vector<Face> faces;
     std::vector<glm::vec3> vertexBufferObject;
 
-    if (loadOBJ("assets/Nave.obj", vertices, textures, normals, faces, 0.06f)) {
+    if (loadOBJ("assets/Nave.obj", vertices, textures, normals, faces, 0.05f)) {
         // For each face
         for (const auto& face : faces)
         {
